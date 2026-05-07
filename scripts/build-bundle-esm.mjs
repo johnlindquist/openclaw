@@ -554,8 +554,10 @@ async function writeOpenClawPackageSidecar(subpaths) {
   const packageRoot = path.join(stagingRoot, "node_modules", "openclaw");
   const pluginSdkRoot = path.join(packageRoot, "plugin-sdk");
   const pluginRuntimeRoot = path.join(packageRoot, "dist", "plugins", "runtime");
+  const rootPluginRuntimeRoot = path.join(stagingRoot, "dist", "plugins", "runtime");
   await mkdir(pluginSdkRoot, { recursive: true });
   await mkdir(pluginRuntimeRoot, { recursive: true });
+  await mkdir(rootPluginRuntimeRoot, { recursive: true });
 
   const exportsField = {};
   for (const subpath of subpaths) {
@@ -597,12 +599,9 @@ async function writeOpenClawPackageSidecar(subpaths) {
       `missing plugin runtime module for sandbox sidecar: ${path.relative(REPO_ROOT, pluginRuntimeEntry)}`,
     );
   }
-  await runTar(
-    ["-czhf", path.join(pluginRuntimeRoot, "index.js.tar.gz"), "dist/plugins/runtime/index.js"],
-    REPO_ROOT,
-  );
-  await runTar(["-xzf", path.join(pluginRuntimeRoot, "index.js.tar.gz")], packageRoot);
-  await rm(path.join(pluginRuntimeRoot, "index.js.tar.gz"), { force: true });
+  const pluginRuntimeSource = await readFile(pluginRuntimeEntry);
+  await writeFile(path.join(pluginRuntimeRoot, "index.js"), pluginRuntimeSource);
+  await writeFile(path.join(rootPluginRuntimeRoot, "index.js"), pluginRuntimeSource);
   await writeFile(
     path.join(stagingRoot, "package.json"),
     JSON.stringify(
@@ -612,7 +611,7 @@ async function writeOpenClawPackageSidecar(subpaths) {
     ) + "\n",
   );
   await runTar(
-    ["-czhf", OPENCLAW_PKG_OUT_FILE, "package.json", "node_modules/openclaw"],
+    ["-czhf", OPENCLAW_PKG_OUT_FILE, "package.json", "node_modules/openclaw", "dist"],
     stagingRoot,
   );
   await rm(stagingRoot, { recursive: true, force: true });
